@@ -43,12 +43,21 @@ export default function Voting() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
+  // Participante que corresponde ao nome do votante (case-insensitive, ignora espaços extras)
+  const normalize = str => str.trim().toLowerCase()
+  const selfParticipant = participants.find(
+    p => normalize(p.name) === normalize(voterName ?? '')
+  )
+
   const votedCount  = Object.keys(votes).length
   const totalCount  = participants.length
-  const allVoted    = votedCount === totalCount
-  const progressPct = Math.round((votedCount / totalCount) * 100)
+  // Se há um participante igual ao votante, ele é excluído automaticamente — conta como avaliado
+  const requiredCount = selfParticipant ? totalCount - 1 : totalCount
+  const allVoted    = votedCount >= requiredCount
+  const progressPct = Math.round((votedCount / requiredCount) * 100)
 
   function selectSentiment(participantName, sentimentKey) {
+    if (selfParticipant && normalize(participantName) === normalize(selfParticipant.name)) return
     setVotes(prev => ({ ...prev, [participantName]: sentimentKey }))
   }
 
@@ -108,7 +117,7 @@ export default function Voting() {
       <div className="voting-header">
         <p className="voting-info">
           Avalie cada participante &nbsp;·&nbsp;{' '}
-          <strong>{votedCount}/{totalCount}</strong> avaliados
+          <strong>{votedCount}/{requiredCount}</strong> avaliados
         </p>
         <div className="progress-bar-wrap">
           <div
@@ -120,17 +129,24 @@ export default function Voting() {
 
       <div className="participants-grid">
         {participants.map(p => {
+          const isSelf   = selfParticipant && normalize(p.name) === normalize(selfParticipant.name)
           const selected = votes[p.name]
           return (
             <div
               key={p.id}
-              className={`card p-card ${selected ? 'voted' : ''}`}
+              className={`card p-card ${selected ? 'voted' : ''} ${isSelf ? 'self-blocked' : ''}`}
+              style={isSelf ? { opacity: 0.45, pointerEvents: 'none' } : {}}
             >
               <Avatar participant={p} />
               <div className="p-info">
                 <div className="p-name">
                   {p.name}
-                  {selected && (
+                  {isSelf && (
+                    <span style={{ marginLeft: '0.4rem', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                      (você)
+                    </span>
+                  )}
+                  {selected && !isSelf && (
                     <span
                       className="voted-checkmark"
                       title="Avaliado"
@@ -152,6 +168,7 @@ export default function Voting() {
                       }
                       title={s.label}
                       onClick={() => selectSentiment(p.name, s.key)}
+                      disabled={isSelf}
                     >
                       <span className="s-emoji">{s.emoji}</span>
                       <span className="s-label">{s.label}</span>
@@ -169,13 +186,13 @@ export default function Voting() {
           className="btn btn-primary"
           onClick={handleSubmit}
           disabled={!allVoted || submitting}
-          title={!allVoted ? `Avalie mais ${totalCount - votedCount} participante(s)` : ''}
+          title={!allVoted ? `Avalie mais ${requiredCount - votedCount} participante(s)` : ''}
         >
           {submitting
             ? '⏳ Enviando...'
             : allVoted
               ? '✅ Enviar Meu Voto'
-              : `Avalie todos (${votedCount}/${totalCount})`}
+              : `Avalie todos (${votedCount}/${requiredCount})`}
         </button>
         <Link to="/">
           <button className="btn btn-ghost">Cancelar</button>

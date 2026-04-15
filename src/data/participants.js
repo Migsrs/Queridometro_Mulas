@@ -12,11 +12,11 @@
 export const participants = [
   { id: 1,  name: 'Isabelle',       photo: '/fotos/isabelle.jpg'       },
   { id: 2,  name: 'Miguel',         photo: '/fotos/miguel.jpg'         },
-  { id: 3,  name: 'Carlos Eduardo', photo: '/fotos/carlos_eduardo.jpg' },
+  { id: 3,  name: 'Cadu',           photo: '/fotos/carlos_eduardo.jpg' },
   { id: 4,  name: 'Erick',          photo: '/fotos/erick.jpg'          },
   { id: 5,  name: 'Lucas',          photo: '/fotos/lucas.jpg'          },
   { id: 6,  name: 'Roger',          photo: '/fotos/roger.jpg'          },
-  { id: 7,  name: 'Thais Marques',  photo: '/fotos/thais_marques.jpg'  },
+  { id: 7,  name: 'Tati',           photo: '/fotos/thais_marques.jpg'  },
   { id: 8,  name: 'Yuri',           photo: '/fotos/yuri.jpg'           },
   { id: 9,  name: 'Thainá',         photo: '/fotos/thayna.jpg'         },
   { id: 10, name: 'Luan',           photo: '/fotos/luan.jpg'           },

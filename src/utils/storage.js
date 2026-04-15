@@ -20,7 +20,7 @@ import {
 import { db } from '../firebase'
 
 const LAST_VOTE_KEY = 'qm_last_vote_ts'
-const COOLDOWN_MS   = 60 * 60 * 1000   // 1 hora em milissegundos
+const COOLDOWN_MS   = 0   // sem cooldown
 const VOTES_COL     = 'votes'
 
 // ─── Cooldown (localStorage — controle por dispositivo) ──────────────────────

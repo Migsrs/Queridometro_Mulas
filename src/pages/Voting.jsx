@@ -41,6 +41,7 @@ export default function Voting() {
   // { participantName: sentimentKey }
   const [votes, setVotes] = useState({})
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const votedCount  = Object.keys(votes).length
   const totalCount  = participants.length
@@ -51,10 +52,15 @@ export default function Voting() {
     setVotes(prev => ({ ...prev, [participantName]: sentimentKey }))
   }
 
-  function handleSubmit() {
-    if (!allVoted) return
-    saveVote(voterName, votes)
-    setSubmitted(true)
+  async function handleSubmit() {
+    if (!allVoted || submitting) return
+    setSubmitting(true)
+    try {
+      await saveVote(voterName, votes)
+      setSubmitted(true)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (submitted) {
@@ -162,12 +168,14 @@ export default function Voting() {
         <button
           className="btn btn-primary"
           onClick={handleSubmit}
-          disabled={!allVoted}
+          disabled={!allVoted || submitting}
           title={!allVoted ? `Avalie mais ${totalCount - votedCount} participante(s)` : ''}
         >
-          {allVoted
-            ? '✅ Enviar Meu Voto'
-            : `Avalie todos (${votedCount}/${totalCount})`}
+          {submitting
+            ? '⏳ Enviando...'
+            : allVoted
+              ? '✅ Enviar Meu Voto'
+              : `Avalie todos (${votedCount}/${totalCount})`}
         </button>
         <Link to="/">
           <button className="btn btn-ghost">Cancelar</button>

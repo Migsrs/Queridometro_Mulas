@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { participants, sentiments, getInitials, getAvatarColor } from '../data/participants'
 import { getAggregateResults, getTotalVotes } from '../utils/storage'
@@ -50,8 +50,19 @@ function calcScore(counts) {
 }
 
 export default function Results() {
-  const aggregate = useMemo(() => getAggregateResults(), [])
-  const totalVotes = getTotalVotes()
+  const [aggregate, setAggregate]   = useState({})
+  const [totalVotes, setTotalVotes] = useState(0)
+  const [loading, setLoading]       = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const [agg, total] = await Promise.all([getAggregateResults(), getTotalVotes()])
+      setAggregate(agg)
+      setTotalVotes(total)
+      setLoading(false)
+    }
+    load()
+  }, [])
 
   // Ordena por score decrescente
   const sorted = useMemo(() => {
@@ -61,6 +72,21 @@ export default function Results() {
       return sb - sa
     })
   }, [aggregate])
+
+  if (loading) {
+    return (
+      <div className="page">
+        <header className="header">
+          <div className="logo-title">Resultados</div>
+          <div className="logo-sub">Big Brother Brasil 26</div>
+          <div className="logo-bar" />
+        </header>
+        <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '3rem' }}>
+          Carregando resultados...
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="page">

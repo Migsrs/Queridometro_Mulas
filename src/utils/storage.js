@@ -1,16 +1,29 @@
 /**
- * Camada de persistência via localStorage.
+ * Camada de persistência via Firebase Firestore.
  *
- * Chaves usadas:
- *  - "qm_votes"        → array completo de votos (com nome do eleitor — só admin lê)
- *  - "qm_last_vote_ts" → timestamp (ms) do último voto — controla o cooldown de 1h
+ * Coleção Firestore: "votes"
+ * Cada documento: { id, voterName, timestamp, votes: { [participante]: sentimentKey } }
+ *
+ * O cooldown continua no localStorage (controle por dispositivo).
  */
 
-const VOTES_KEY      = 'qm_votes'
-const LAST_VOTE_KEY  = 'qm_last_vote_ts'
-const COOLDOWN_MS    = 60 * 60 * 1000   // 1 hora em milissegundos
+import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  query,
+  orderBy,
+} from 'firebase/firestore'
+import { db } from '../firebase'
 
-// ─── Cooldown ────────────────────────────────────────────────────────────────
+const LAST_VOTE_KEY = 'qm_last_vote_ts'
+const COOLDOWN_MS   = 60 * 60 * 1000   // 1 hora em milissegundos
+const VOTES_COL     = 'votes'
+
+// ─── Cooldown (localStorage — controle por dispositivo) ──────────────────────
 
 /**
  * Retorna o estado do cooldown do votante.
@@ -39,36 +52,42 @@ export function formatRemaining(ms) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-// ─── Leitura ─────────────────────────────────────────────────────────────────
+// ─── Leitura ──────────────────────────────────────────────────────────────────
 
-export function getAllVotes() {
-  try {
-    return JSON.parse(localStorage.getItem(VOTES_KEY) || '[]')
-  } catch {
-    return []
-  }
+/**
+ * Busca todos os votos do Firestore, ordenados por timestamp.
+ * @returns {Promise<Array>}
+ */
+export async function getAllVotes() {
+  const q = query(collection(db, VOTES_COL), orderBy('timestamp', 'asc'))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => {
+    const data = d.data()
+    return {
+      id:        d.id,
+      voterName: data.voterName,
+      timestamp: data.timestamp?.toDate?.()?.toISOString() ?? data.timestamp,
+      votes:     data.votes,
+    }
+  })
 }
 
 // ─── Escrita ──────────────────────────────────────────────────────────────────
 
 /**
- * Salva um voto completo e registra o timestamp para o cooldown.
- * @param {string} voterName   - Nome de quem votou (só visível ao admin)
- * @param {Object} votes       - { [participantName]: sentimentKey }
- * @returns {string}           - ID gerado para o voto
+ * Salva um voto no Firestore e registra o timestamp de cooldown localmente.
+ * @param {string} voterName
+ * @param {Object} votes  — { [participantName]: sentimentKey }
+ * @returns {Promise<string>} ID do documento criado
  */
-export function saveVote(voterName, votes) {
-  const all = getAllVotes()
-  const id  = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  all.push({
-    id,
+export async function saveVote(voterName, votes) {
+  const docRef = await addDoc(collection(db, VOTES_COL), {
     voterName: voterName.trim(),
-    timestamp: new Date().toISOString(),
+    timestamp: serverTimestamp(),
     votes,
   })
-  localStorage.setItem(VOTES_KEY, JSON.stringify(all))
   localStorage.setItem(LAST_VOTE_KEY, String(Date.now()))
-  return id
+  return docRef.id
 }
 
 // ─── Agregação (pública — sem nomes) ─────────────────────────────────────────
@@ -76,10 +95,12 @@ export function saveVote(voterName, votes) {
 /**
  * Retorna contagens por participante e sentimento.
  * { [participantName]: { [sentimentKey]: count } }
+ * @returns {Promise<Object>}
  */
-export function getAggregateResults() {
-  const results = {}
-  for (const vote of getAllVotes()) {
+export async function getAggregateResults() {
+  const allVotes = await getAllVotes()
+  const results  = {}
+  for (const vote of allVotes) {
     for (const [participant, sentiment] of Object.entries(vote.votes)) {
       if (!results[participant]) results[participant] = {}
       results[participant][sentiment] = (results[participant][sentiment] || 0) + 1
@@ -88,25 +109,32 @@ export function getAggregateResults() {
   return results
 }
 
-/** Total de votos registrados. */
-export function getTotalVotes() {
-  return getAllVotes().length
+/** @returns {Promise<number>} */
+export async function getTotalVotes() {
+  const snap = await getDocs(collection(db, VOTES_COL))
+  return snap.size
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
-/** Exclui TODOS os votos e reseta o cooldown. Ação irreversível — use só no painel admin. */
-export function clearAllVotes() {
-  localStorage.removeItem(VOTES_KEY)
+/**
+ * Exclui TODOS os votos do Firestore e reseta o cooldown local.
+ * Ação irreversível — use só no painel admin.
+ * @returns {Promise<void>}
+ */
+export async function clearAllVotes() {
+  const snap = await getDocs(collection(db, VOTES_COL))
+  await Promise.all(snap.docs.map(d => deleteDoc(doc(db, VOTES_COL, d.id))))
   localStorage.removeItem(LAST_VOTE_KEY)
 }
 
 /**
  * Gera CSV do log completo para download.
- * Colunas: id, voterName, timestamp, [um participante por coluna]
+ * @param {string[]} participantNames
+ * @returns {Promise<string>}
  */
-export function generateCSV(participantNames) {
-  const votes = getAllVotes()
+export async function generateCSV(participantNames) {
+  const votes = await getAllVotes()
   if (votes.length === 0) return ''
 
   const header = ['id', 'votante', 'horario', ...participantNames].join(',')

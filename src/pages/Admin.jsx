@@ -23,36 +23,44 @@ function formatDate(iso) {
 }
 
 export default function Admin() {
-  const [input,  setInput]  = useState('')
-  const [auth,   setAuth]   = useState(false)
-  const [error,  setError]  = useState('')
-  const [votes,  setVotes]  = useState([])
-  const [search, setSearch] = useState('')
+  const [input,   setInput]   = useState('')
+  const [auth,    setAuth]    = useState(false)
+  const [error,   setError]   = useState('')
+  const [votes,   setVotes]   = useState([])
+  const [search,  setSearch]  = useState('')
+  const [loading, setLoading] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault()
     if (input === ADMIN_PASSWORD) {
+      setLoading(true)
+      const all = await getAllVotes()
+      setVotes(all)
       setAuth(true)
-      setVotes(getAllVotes())
+      setLoading(false)
     } else {
       setError('Senha incorreta.')
     }
   }
 
-  function refresh() {
-    setVotes(getAllVotes())
+  async function refresh() {
+    setLoading(true)
+    const all = await getAllVotes()
+    setVotes(all)
     setRefreshKey(k => k + 1)
+    setLoading(false)
   }
 
-  function handleClear() {
+  async function handleClear() {
     if (!window.confirm('Tem certeza que deseja apagar TODOS os votos? Esta ação é irreversível.')) return
-    clearAllVotes()
-    refresh()
+    setLoading(true)
+    await clearAllVotes()
+    await refresh()
   }
 
-  function handleExportCSV() {
-    const csv = generateCSV(participants.map(p => p.name))
+  async function handleExportCSV() {
+    const csv = await generateCSV(participants.map(p => p.name))
     if (!csv) return alert('Nenhum voto para exportar.')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url  = URL.createObjectURL(blob)
@@ -175,13 +183,13 @@ export default function Admin() {
 
         {/* Ações */}
         <div className="admin-actions">
-          <button className="btn btn-ghost" onClick={refresh}>
-            🔄 Atualizar
+          <button className="btn btn-ghost" onClick={refresh} disabled={loading}>
+            {loading ? '⏳ Carregando...' : '🔄 Atualizar'}
           </button>
-          <button className="btn btn-gold" onClick={handleExportCSV} disabled={votes.length === 0}>
+          <button className="btn btn-gold" onClick={handleExportCSV} disabled={votes.length === 0 || loading}>
             ⬇️ Exportar CSV
           </button>
-          <button className="btn btn-danger" onClick={handleClear} disabled={votes.length === 0}>
+          <button className="btn btn-danger" onClick={handleClear} disabled={votes.length === 0 || loading}>
             🗑 Limpar Todos os Votos
           </button>
           <Link to="/">

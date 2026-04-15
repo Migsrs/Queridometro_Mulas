@@ -34,7 +34,7 @@ export default function Home() {
     <div className="page">
       <header className="header">
         <div className="logo-title">Queridômetro</div>
-        <div className="logo-sub">Big Brother Brasil 26</div>
+        <div className="logo-sub">Big Mulas Brasil 26</div>
         <div className="logo-bar" />
       </header>
 

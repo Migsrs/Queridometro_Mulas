@@ -20,20 +20,42 @@ import {
 import { db } from '../firebase'
 
 const LAST_VOTE_KEY = 'qm_last_vote_ts'
-const COOLDOWN_MS   = 0   // sem cooldown
+const RESET_HOUR    = 6   // reinicia às 06:00
 const VOTES_COL     = 'votes'
 
 // ─── Cooldown (localStorage — controle por dispositivo) ──────────────────────
 
+/** Timestamp do reset de hoje às 6h (pode ser no passado). */
+function todayResetAt() {
+  const d = new Date()
+  d.setHours(RESET_HOUR, 0, 0, 0)
+  return d.getTime()
+}
+
+/** Timestamp do próximo reset às 6h (sempre no futuro). */
+function nextResetAt() {
+  const d = new Date()
+  d.setHours(RESET_HOUR, 0, 0, 0)
+  if (Date.now() >= d.getTime()) d.setDate(d.getDate() + 1)
+  return d.getTime()
+}
+
 /**
  * Retorna o estado do cooldown do votante.
+ * Permite votar uma vez por dia — reinicia todo dia às 06:00.
  * @returns {{ canVote: boolean, remainingMs: number }}
  */
 export function getCooldownStatus() {
   const raw = localStorage.getItem(LAST_VOTE_KEY)
   if (!raw) return { canVote: true, remainingMs: 0 }
-  const elapsed   = Date.now() - parseInt(raw, 10)
-  const remaining = COOLDOWN_MS - elapsed
+
+  const lastVote = parseInt(raw, 10)
+
+  // Votou antes do reset de hoje → pode votar de novo
+  if (lastVote < todayResetAt()) return { canVote: true, remainingMs: 0 }
+
+  // Votou depois do reset de hoje → bloqueia até o próximo reset às 6h
+  const remaining = nextResetAt() - Date.now()
   return {
     canVote:     remaining <= 0,
     remainingMs: Math.max(0, remaining),

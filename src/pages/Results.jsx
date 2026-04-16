@@ -78,7 +78,7 @@ export default function Results() {
       <div className="page">
         <header className="header">
           <div className="logo-title">Resultados</div>
-          <div className="logo-sub">Big Brother Brasil 26</div>
+          <div className="logo-sub">Big Mulas Brasil 26</div>
           <div className="logo-bar" />
         </header>
         <p style={{ textAlign: 'center', color: 'var(--muted)', padding: '3rem' }}>
@@ -155,14 +155,6 @@ export default function Results() {
                 </div>
                 <div>
                   <div className="result-name">{p.name}</div>
-                  <div className="result-votes-total">
-                    {total} voto{total !== 1 ? 's' : ''}
-                    {total > 0 && (
-                      <span style={{ marginLeft: 6, color: 'var(--gold)' }}>
-                        · {score.toFixed(1)} ★
-                      </span>
-                    )}
-                  </div>
                 </div>
               </div>
 
